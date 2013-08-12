@@ -63,6 +63,15 @@ module Kaminari
         1
       end
     end
+    
+    # This link is for the view_all
+    
+    class AllPage < Tag
+      include Link
+      def page #:nodoc:
+        1
+      end
+    end
 
     # Link with page number that appears at the rightmost
     class LastPage < Tag
