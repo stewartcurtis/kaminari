@@ -1,5 +1,7 @@
 module Kaminari
   module Generators
+    SHOW_API = 'http://github.com/api/v2/json/blob/show/amatsuda/kaminari_themes'
+    ALL_API  = 'http://github.com/api/v2/json/blob/all/amatsuda/kaminari_themes/master'
 
     class ViewsGenerator < Rails::Generators::NamedBase
       source_root File.expand_path('../../../../app/views/kaminari', __FILE__)
@@ -35,8 +37,13 @@ BANNER
       private
       def self.themes
         begin
-          @themes ||= GitHubApiHelper.get_files_in_master.group_by {|fn, _| fn[0...(fn.index('/') || 0)]}.delete_if {|fn, _| fn.blank?}.map do |name, files|
-            Theme.new name, files
+          @themes ||= open ALL_API do |json|
+#             @themes ||= open(File.join(File.dirname(__FILE__), '../../../spec/generators/sample.json')) do |json|
+            files = ActiveSupport::JSON.decode(json)['blobs']
+            hash = files.group_by {|fn, _| fn[0...(fn.index('/') || 0)]}.delete_if {|fn, _| fn.blank?}
+            hash.map do |name, files|
+              Theme.new name, files
+            end
           end
         rescue SocketError
           []
@@ -46,7 +53,7 @@ BANNER
       def download_templates(theme)
         theme.templates_for(template_engine).each do |template|
           say "      downloading #{template.name} from kaminari_themes..."
-          create_file template.name, GitHubApiHelper.get_content_for("#{theme.name}/#{template.name}")
+          get "#{SHOW_API}/#{template.sha}", template.name
         end
       end
 
@@ -85,34 +92,12 @@ BANNER
       def description #:nodoc:
         file = @templates.detect(&:description?)
         return "#{' ' * 12}#{name}" unless file
-        GitHubApiHelper.get_content_for("#{@name}/#{file.name}").chomp.gsub(/^/, ' ' * 12)
+        open("#{SHOW_API}/#{file.sha}").read.chomp.gsub /^/, ' ' * 12
       end
 
       def templates_for(template_engine) #:nodoc:
         @templates.select {|t| !t.description?}.select {|t| !t.view? || (t.engine == template_engine)}
       end
-    end
-
-    module GitHubApiHelper
-      def get_files_in_master
-        master_tree_sha = open('https://api.github.com/repos/amatsuda/kaminari_themes/git/refs/heads/master') do |json|
-          ActiveSupport::JSON.decode(json)['object']['sha']
-        end
-        open('https://api.github.com/repos/amatsuda/kaminari_themes/git/trees/' + master_tree_sha + '?recursive=1') do |json|
-          blobs = ActiveSupport::JSON.decode(json)['tree'].find_all {|i| i['type'] == 'blob' }
-          blobs.map do |blob|
-            [blob['path'], blob['sha']]
-          end
-        end
-      end
-      module_function :get_files_in_master
-
-      def get_content_for(path)
-        open('https://api.github.com/repos/amatsuda/kaminari_themes/contents/' + path) do |json|
-          Base64.decode64(ActiveSupport::JSON.decode(json)['content'])
-        end
-      end
-      module_function :get_content_for
     end
   end
 end

@@ -1,38 +1,73 @@
 module Kaminari
-end
+  def self.frameworks
+    frameworks = []
+    case
+      when rails?   then frameworks << 'rails'
+      when sinatra? then frameworks << 'sinatra/base'
+    end
+    frameworks
+  end
 
-# load Rails/Railtie
-begin
-  require 'rails'
-rescue LoadError
-  #do nothing
-end
+  def self.load_framework!
+    show_warning if frameworks.empty?
+    frameworks.each do |framework|
+      begin
+        require framework
+      rescue NameError => e
+        raise "Failed to load framework #{framework.inspect}. Have you added it to Gemfile?"
+      end
+    end
+  end
 
-$stderr.puts <<-EOC if !defined?(Rails) && !defined?(Sinatra) && !defined?(Grape)
+  def self.show_warning
+    $stderr.puts <<-EOC
 warning: no framework detected.
-
-Your Gemfile might not be configured properly.
+would you check out if your Gemfile appropriately configured?
 ---- e.g. ----
-Rails:
+when Rails:
+    gem 'rails'
     gem 'kaminari'
 
-Sinatra/Padrino:
+when Sinatra/Padrino:
     gem 'kaminari', :require => 'kaminari/sinatra'
 
-Grape:
-    gem 'kaminari', :require => 'kaminari/grape'
+    EOC
+  end
 
-EOC
+  def self.load_kaminari!
+    require 'kaminari/config'
+    require 'kaminari/helpers/action_view_extension'
+    require 'kaminari/helpers/paginator'
+    require 'kaminari/models/page_scope_methods'
+    require 'kaminari/models/configuration_methods'
+  end
 
-# load Kaminari components
-require 'kaminari/config'
-require 'kaminari/helpers/paginator'
-require 'kaminari/models/page_scope_methods'
-require 'kaminari/models/configuration_methods'
-require 'kaminari/hooks'
+  def self.hook!
+    load_framework!
+    load_kaminari!
+    require 'kaminari/hooks'
+    if rails?
+      require 'kaminari/railtie'
+      require 'kaminari/engine'
+    elsif sinatra?
+      require 'kaminari/sinatra'
+    else
+      Kaminari::Hooks.init!
+    end
+  end
 
-# if not using Railtie, call `Kaminari::Hooks.init` directly
-if defined? Rails
-  require 'kaminari/railtie'
-  require 'kaminari/engine'
+  def self.load!
+    hook!
+  end
+
+  private
+  def self.rails?
+    defined?(::Rails)
+  end
+
+  def self.sinatra?
+    defined?(::Sinatra)
+  end
 end
+
+Kaminari.load!

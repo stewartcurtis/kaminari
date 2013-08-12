@@ -23,17 +23,13 @@ module Kaminari
         @template, @options = template, options
         @theme = @options[:theme] ? "#{@options[:theme]}/" : ''
         @options[:current_page] = PageProxy.new @window_options.merge(@options), @options[:current_page], nil
-        #FIXME for compatibility. remove num_pages at some time in the future
-        @options[:total_pages] ||= @options[:num_pages]
-        @options[:num_pages] ||= @options[:total_pages]
-        @last = nil
         # initialize the output_buffer for Context
         @output_buffer = ActionView::OutputBuffer.new
       end
 
       # render given block as a view template
       def render(&block)
-        instance_eval(&block) if @options[:total_pages] > 1
+        instance_eval &block if @options[:num_pages] > 1
         @output_buffer
       end
 
@@ -54,10 +50,10 @@ module Kaminari
 
       def relevant_pages(options)
         left_window_plus_one = 1.upto(options[:left] + 1).to_a
-        right_window_plus_one = (options[:total_pages] - options[:right]).upto(options[:total_pages]).to_a
+        right_window_plus_one = (options[:num_pages] - options[:right]).upto(options[:num_pages]).to_a
         inside_window_plus_each_sides = (options[:current_page] - options[:window] - 1).upto(options[:current_page] + options[:window] + 1).to_a
 
-        (left_window_plus_one + inside_window_plus_each_sides + right_window_plus_one).uniq.sort.reject {|x| (x < 1) || (x > options[:total_pages])}
+        (left_window_plus_one + inside_window_plus_each_sides + right_window_plus_one).uniq.sort.reject {|x| (x < 1) || (x > options[:num_pages])}
       end
       private :relevant_pages
 
@@ -75,32 +71,22 @@ module Kaminari
 
       def to_s #:nodoc:
         subscriber = ActionView::LogSubscriber.log_subscribers.detect {|ls| ls.is_a? ActionView::LogSubscriber}
+        return super @window_options.merge(@options).merge :paginator => self unless subscriber
 
-        # There is a logging subscriber
-        # and we don't want it to log render_partial
-        # It is threadsafe, but might not repress logging
-        # consistently in a high-load environment
-        if subscriber
-          unless defined? subscriber.render_partial_with_logging
-            class << subscriber
-              alias_method :render_partial_with_logging, :render_partial
-              attr_accessor :render_without_logging
-              # ugly hack to make a renderer where
-              # we can turn logging on or off
-              def render_partial(event)
-                render_partial_with_logging(event) unless render_without_logging
-              end
-            end
-          end
-
-          subscriber.render_without_logging = true
-          ret = super @window_options.merge(@options).merge :paginator => self
-          subscriber.render_without_logging = false
-
-          ret
-        else
-          super @window_options.merge(@options).merge :paginator => self
+        # dirty hack to suppress logging render_partial
+        class << subscriber
+          alias_method :render_partial_with_logging, :render_partial
+          # do nothing
+          def render_partial(event); end
         end
+
+        ret = super @window_options.merge(@options).merge :paginator => self
+
+        class << subscriber
+          alias_method :render_partial, :render_partial_with_logging
+          undef :render_partial_with_logging
+        end
+        ret
       end
 
       # Wraps a "page number" and provides some utility methods
@@ -128,7 +114,7 @@ module Kaminari
 
         # the last page or not
         def last?
-          @page == @options[:total_pages]
+          @page == @options[:num_pages]
         end
 
         # the previous page or not
@@ -148,7 +134,7 @@ module Kaminari
 
         # within the right outer window or not
         def right_outer?
-          @options[:total_pages] - @page < @options[:right]
+          @options[:num_pages] - @page < @options[:right]
         end
 
         # inside the inner window or not

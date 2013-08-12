@@ -56,40 +56,35 @@ describe Kaminari::PaginatableArray do
     end
   end
 
-  describe '#total_pages' do
+  describe '#num_pages' do
     context 'per 25 (default)' do
       subject { array.page }
-      its(:total_pages) { should == 4 }
+      its(:num_pages) { should == 4 }
     end
 
     context 'per 7' do
       subject { array.page(2).per(7) }
-      its(:total_pages) { should == 15 }
+      its(:num_pages) { should == 15 }
     end
 
     context 'per 65536' do
       subject { array.page(50).per(65536) }
-      its(:total_pages) { should == 1 }
+      its(:num_pages) { should == 1 }
     end
 
     context 'per 0 (using default)' do
       subject { array.page(50).per(0) }
-      its(:total_pages) { should == 4 }
+      its(:num_pages) { should == 4 }
     end
 
     context 'per -1 (using default)' do
       subject { array.page(5).per(-1) }
-      its(:total_pages) { should == 4 }
+      its(:num_pages) { should == 4 }
     end
 
     context 'per "String value that can not be converted into Number" (using default)' do
       subject { array.page(5).per('aho') }
-      its(:total_pages) { should == 4 }
-    end
-
-    context 'per 25, padding 25' do
-      subject { array.page(1).padding(25) }
-      its(:total_pages) { should == 3 }
+      its(:num_pages) { should == 4 }
     end
   end
 
@@ -102,30 +97,6 @@ describe Kaminari::PaginatableArray do
     context 'page 2' do
       subject { array.page(2).per 3 }
       its(:current_page) { should == 2 }
-    end
-  end
-
-  describe '#next_page' do
-    context 'page 1' do
-      subject { array.page }
-      its(:next_page) { should == 2 }
-    end
-
-    context 'page 5' do
-      subject { array.page 5 }
-      its(:next_page) { should be_nil }
-    end
-  end
-
-  describe '#prev_page' do
-    context 'page 1' do
-      subject { array.page }
-      its(:prev_page) { should be_nil }
-    end
-
-    context 'page 5' do
-      subject { array.page 5 }
-      its(:prev_page) { should == 4 }
     end
   end
 
