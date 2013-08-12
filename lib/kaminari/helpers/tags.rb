@@ -21,7 +21,7 @@ module Kaminari
       end
 
       def to_s(locals = {}) #:nodoc:
-        @template.render :partial => "kaminari/#{@theme}#{self.class.name.demodulize.underscore}", :locals => @options.merge(locals), :formats => [:html]
+        @template.render :partial => "kaminari/#{@theme}#{self.class.name.demodulize.underscore}", :locals => @options.merge(locals)
       end
 
       def page_url_for(page)
@@ -68,7 +68,7 @@ module Kaminari
     class LastPage < Tag
       include Link
       def page #:nodoc:
-        @options[:total_pages]
+        @options[:num_pages]
       end
     end
 
