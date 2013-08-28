@@ -61,7 +61,7 @@ module Kaminari
         @last = Page.new @template, @options.merge(:page => page)
       end
 
-      %w[first_page prev_page next_page last_page gap all_page].each do |tag|
+      %w[first_page prev_page next_page last_page gap all_page sort].each do |tag|
         eval <<-DEF
           def #{tag}_tag
             @last = #{tag.classify}.new @template, @options
